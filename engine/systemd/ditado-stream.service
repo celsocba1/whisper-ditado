@@ -1,0 +1,11 @@
+[Unit]
+Description=Ditado em streaming (parciais small + final turbo via whisper-ditado)
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/whisper-ditado/venv/bin/python3 %h/.local/share/whisper-ditado/ditado_stream.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daemon Whisper local (faster-whisper large-v3-turbo int8) compartilhado por todos os clientes
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/whisper-ditado/venv/bin/python3 %h/.local/share/whisper-ditado/whisper_daemon.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

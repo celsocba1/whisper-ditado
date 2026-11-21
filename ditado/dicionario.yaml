@@ -1,0 +1,24 @@
+# Dicionário do ditado (camadas 0–4). Formato: forma certa (c) → variantes erradas (v).
+#   - Camada 0: formas com dica (padrão: true) vão como vocabulário ao Whisper (≤224 tokens).
+#   - Camada 1: variante → forma certa, por palavra inteira, sem diferenciar maiúscula (~0 ms).
+#   - Camada 2: o LLM local (opcional) recebe este dicionário como glossário e devolve só correções.
+#   - Camada 3: regras aprendidas das correções do usuário entram no bloco APRENDIDAS (após 2 ocorrências).
+# Edite à vontade: só as linhas entre as marcas do bloco APRENDIDAS são reescritas por programa.
+# Personalize com o SEU vocabulário: nomes próprios, projetos, produtos e jargão do seu dia a dia.
+#   dica: false  → o termo é corrigido (camada 1) mas NÃO vai para o prompt do Whisper
+#                  (use quando o termo puxa o modelo para uma palavra parecida).
+termos:
+  - {c: Whisper, v: [ISPER, uísper, uisper, Wisper, Whisperer]}
+  - {c: OpenCode, v: [Open Code, Open-Code, opencode]}
+  - {c: OpenAI, v: [Open A I, openiai]}
+  - {c: Vulkan, v: [Vulcan, Vulcano]}
+  - {c: CUDA, v: [C U D A, cúda]}
+  - {c: systemd, v: [system D, sistemade], dica: false}
+  - {c: microfone, v: [Mikrofone]}
+  - {c: cron, v: [cronjob, cron job]}
+  - {c: RAID, v: [RIDE, Raide]}
+  - {c: GitHub, v: [Git Hub, Guitub]}
+  - {c: Docker, v: [Dóquer, Doquer]}
+# >>> APRENDIDAS (gerado por aprender.py — não editar à mão) >>>
+aprendidas: []
+# <<< APRENDIDAS <<<

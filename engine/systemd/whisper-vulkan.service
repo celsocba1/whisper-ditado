@@ -1,0 +1,19 @@
+[Unit]
+# Perfil vulkan: whisper-server (whisper.cpp) na iGPU via Vulkan, modelo residente.
+# Só ouve em 127.0.0.1:47111; quem fala com ele é o whisper_daemon.py (whisper-ditado.service,
+# WHISPER_DITADO_DISPOSITIVO=vulkan), nunca os clientes direto.
+# Modo qualidade: turbo f16, -fa, beam 2, -l pt, SEM -ac reduzido.
+# Instalada por install-engine.sh (perfil vulkan); binário e modelo fora do repo, versão fixada no script.
+Description=whisper.cpp Vulkan (large-v3-turbo f16, beam 2) em 127.0.0.1:47111
+Before=whisper-ditado.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/opt/whisper.cpp/bin/whisper-server -m %h/.local/share/whisper.cpp/models/ggml-large-v3-turbo.bin --host 127.0.0.1 --port 47111 -l pt -t 8 -fa -bs 2
+# O journal recebe a carga (backend Vulkan0) e uma linha por pedido; o texto transcrito não é impresso
+# (conferido na v1.9.5 em 07/11/2026). Não usar StandardOutput=null: o stderr herda e some junto.
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

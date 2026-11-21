@@ -1,0 +1,9 @@
+# Só fontes no git; o que os instaladores regeneram fica de fora (o dist/ do plugin É versionado).
+*.bin
+*.gguf
+*.onnx
+*.part
+node_modules/
+.venv*/
+__pycache__/
+*.log

@@ -1,0 +1,8 @@
+# Ditado em estação SEM GPU NVIDIA (perfil CPU — plano_voz_sem_gpu.md F2). Versões do venv do .42 (25/10/2026).
+# Sem os pacotes nvidia-* (o venv fica em ~460 MB em vez de ~2,7 GB).
+# av travado em 18.1.0: o 19.0.2 quebra o faster-whisper 1.2.1 ao abrir arquivo
+# ("open() got an unexpected keyword argument 'metadata_errors'").
+faster-whisper==1.2.1
+ctranslate2==4.8.3
+av==18.1.0
+numpy==2.5.4

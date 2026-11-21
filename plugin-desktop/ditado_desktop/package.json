@@ -1,0 +1,24 @@
+{
+  "name": "ditado-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Voice dictation for OpenCode Desktop (F8) — client of the local ditado-stream service",
+  "exports": {
+    "./gui-experimental": "./dist/gui-experimental.cjs"
+  },
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "effect": "4.1.0",
+    "solid-js": "^1.9.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}
