@@ -88,6 +88,7 @@ def corrigir(t):
 
 
 def log(m):
+    """Linha de log no stderr — o journal das unidades systemd apanha daqui."""
     sys.stderr.write(f"[ditado_stream {time.strftime('%H:%M:%S')}] {m}\n")
     sys.stderr.flush()
 
@@ -97,6 +98,7 @@ GPU = threading.Lock()
 
 
 def carregar():
+    """Carrega o modelo das parciais quando DITADO_PREVIA=1; sem prévia, só acerta o rótulo do dispositivo."""
     global MODELO, DISPOSITIVO
     if not PREVIA:
         DISPOSITIVO = "-"
@@ -119,6 +121,7 @@ def carregar():
 
 
 def inferir(pcm):
+    """Roda o small na janela de PCM dada e devolve (início, fim, texto) de cada segmento."""
     a = np.frombuffer(pcm[: len(pcm) - len(pcm) % 2], dtype=np.int16).astype(np.float32) / 32768.0
     with GPU:
         segs, _ = MODELO.transcribe(a, language="pt", beam_size=1, vad_filter=True,
@@ -129,6 +132,7 @@ def inferir(pcm):
 
 
 def final_turbo(pcm):
+    """Passa o PCM inteiro pelo daemon (turbo) e devolve o texto final corrigido."""
     dica = (dicionario.dicas() or VOCAB).encode()
     corpo = struct.pack(">H", len(dica)) + dica + pcm
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -137,6 +141,7 @@ def final_turbo(pcm):
     s.sendall(struct.pack(">IB", 1 + len(corpo), 0x04) + corpo)
 
     def ex(n):
+        """Lê exatamente n bytes da resposta (o daemon responde em quadros)."""
         b = bytearray()
         while len(b) < n:
             c = s.recv(n - len(b))
@@ -153,6 +158,7 @@ def final_turbo(pcm):
 
 class Sessao:
     def __init__(self, conn):
+        """Estado da sessão: buffer de áudio, threads e travas."""
         self.conn = conn
         self.buf = bytearray()
         self.lock = threading.Lock()   # protege buf
@@ -168,6 +174,7 @@ class Sessao:
         self.t_prog = time.time()
 
     def enviar(self, obj):
+        """Manda uma linha JSON ao cliente; socket quebrou, sessão encerra sozinha."""
         try:
             with self.wlock:
                 self.conn.sendall((json.dumps(obj, ensure_ascii=False) + "\n").encode())
@@ -198,11 +205,13 @@ class Sessao:
         self._matar_proc()
 
     def _matar_proc(self):
+        """Para o arecord com precisão (kill + wait), se ainda estiver rodando."""
         if self.proc and self.proc.poll() is None:
             self.proc.kill()
             self.proc.wait()
 
     def _cap_arquivo(self, caminho):
+        """Injeta um WAV no buffer como se fosse o microfone (caminho de teste)."""
         try:
             with wave.open(caminho, "rb") as w:
                 if w.getframerate() != HZ or w.getnchannels() != 1:
@@ -259,6 +268,7 @@ class Sessao:
                              "desde_inicio_ms": int((time.time() - self.t_ini) * 1000)})
 
     def iniciar(self, arquivo=None):
+        """Começa a gravar: limpa o buffer, sobe captura (e parciais) e responde "gravando"."""
         if self.ativa:
             self.enviar({"tipo": "erro", "msg": "já gravando"})
             return
@@ -279,11 +289,13 @@ class Sessao:
             threading.Thread(target=self._esperar_auto, daemon=True).start()
 
     def _esperar_auto(self):
+        """Quando a gravação de arquivo termina sozinha, fecha e transcreve."""
         self.parar.wait()
         if self.auto_stop and self.ativa:
             self.finalizar()
 
     def _vigia(self):
+        """Cuidado da sessão: heartbeat do cliente, tempo máximo e silêncio (com prévia)."""
         while self.ativa and not self.parar.is_set():
             time.sleep(0.5)
             agora = time.time()
@@ -300,6 +312,7 @@ class Sessao:
                 self.finalizar(motivo="silencio")
 
     def finalizar(self, motivo="parar"):
+      """Para tudo e manda o final pelo turbo; áudio menor que 0,3 s volta vazio."""
       with self.trans:
         if not self.ativa:
             return
@@ -338,6 +351,7 @@ class Sessao:
             self.enviar({"tipo": "polido", "texto": novo, "base": txt, "trocas": ok, "ms": ms})
 
     def cancelar(self, motivo="cancelado"):
+      """Descarta o que tinha e avisa o cliente."""
       with self.trans:
         self.ativa = False
         self.parar.set()
@@ -346,6 +360,7 @@ class Sessao:
 
 
 def transcrever_pcm(s, m):
+    """Atende o comando "texto": cliente que gravou por conta própria manda o PCM pronto."""
     t = time.time()
     try:
         pcm = base64.b64decode(m.get("pcm_b64", ""))
@@ -364,6 +379,7 @@ def transcrever_pcm(s, m):
 
 
 def atender(conn):
+    """Uma thread por conexão: lê comandos JSON por linha e despacha para a sessão."""
     s = Sessao(conn)
     f = conn.makefile("r", encoding="utf-8")
     try:
@@ -406,6 +422,7 @@ def atender(conn):
 
 
 def main():
+    """Sobe o socket (limpando o antigo) e fica em loop aceitando conexões."""
     carregar()
     if os.path.exists(SOCK):
         os.unlink(SOCK)

@@ -133,6 +133,7 @@ class FilaPrioridade:
     """
 
     def __init__(self):
+        """Monta a fila: Condition própria e heap com (prioridade, sequência, evento)."""
         self._cv = threading.Condition()
         self._heap = []      # [(prioridade, seq, evento)]
         self._seq = 0
@@ -141,6 +142,7 @@ class FilaPrioridade:
 
     @contextlib.contextmanager
     def vez(self, prioridade=1, ev=None):
+        """Toma a vez do motor por prioridade; quem espera dorme na Condition até ser o próximo."""
         # `ev` vem do PEDIDOS do pedido (14/11/2026): a fila NÃO pode criar um Event próprio, senão o
         # cancelamento por id procura um objeto que nunca está no heap e nunca cancela nada.
         ev = ev or threading.Event()
@@ -195,6 +197,7 @@ TRAVA_PEDIDOS = threading.Lock()
 
 
 def log(msg):
+    """Log no stderr com hora — o journal das unidades systemd apanha daqui."""
     sys.stderr.write(f"[whisper_daemon {time.strftime('%H:%M:%S')}] {msg}\n")
     sys.stderr.flush()
 
@@ -210,6 +213,7 @@ def _fw():
 
 
 def _carregar_cpu():
+    """Carrega o turbo int8 na CPU, com o lote desligado (BatchedInference só compensa na GPU)."""
     global DISPOSITIVO, LOTE
     DISPOSITIVO = "cpu"
     LOTE = 1  # BatchedInferencePipeline só compensa na GPU
@@ -304,6 +308,7 @@ def _reserva_cpu():
 
 
 def recv_exact(conn, n):
+    """Lê exatamente n bytes do socket (o protocolo fala em quadros big-endian)."""
     data = bytearray()
     while len(data) < n:
         chunk = conn.recv(n - len(data))
@@ -314,6 +319,7 @@ def recv_exact(conn, n):
 
 
 def responder(conn, obj):
+    """Responde com um quadro u32 tamanho + JSON."""
     corpo = json.dumps(obj, ensure_ascii=False).encode("utf-8")
     conn.sendall(struct.pack(">I", len(corpo)) + corpo)
 
@@ -335,6 +341,7 @@ _MARCAS_RE = re.compile(r"\[[^\]]{0,40}\]|\*[^*\n]{1,30}\*")
 
 
 def corrigir_nomes(texto):
+    """Aplica as correções de termo palavra por palavra, preservando acentos no resto do texto."""
     for rx, troca in _CORRECOES_RE:
         base = "".join(unicodedata.normalize("NFD", c)[0] for c in texto)
         if len(base) != len(texto):
@@ -427,6 +434,7 @@ def _prompt_com_contexto(dicas, contexto):
 
 
 def _prompt_glossario(dicas):
+    """Monta o prompt "Glossário: a, b." com DICAS_BASE primeiro, sem repetir termo e dentro de PROMPT_MAX."""
     termos, vistos, tamanho = [], set(), len("Glossário: .")
     for t in re.split(r"[\s,;]+", DICAS_BASE + " " + (dicas or "")):
         t = t.strip(" .:")
@@ -583,6 +591,7 @@ def saude():
 
 
 def ja_ativo():
+    """Pergunta se já há daemon no socket; socket morto, limpa o arquivo e segue."""
     if not os.path.exists(SOCKET_PATH):
         return False
     try:
@@ -693,6 +702,7 @@ def atender(conn, sair):
 
 
 def main():
+    """Sobe o socket 0600, liga SIGINT/SIGTERM e fica atendendo uma thread por conexão."""
     if ja_ativo():
         log("já há daemon ativo no socket; saindo")
         return
@@ -709,6 +719,7 @@ def main():
     server.listen(8)
 
     def sair(*_):
+        """Fecha o socket, remove o arquivo e encerra (SIGINT/SIGTERM caem aqui)."""
         try:
             server.close()
             if os.path.exists(SOCKET_PATH):

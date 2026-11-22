@@ -36,6 +36,7 @@ GLOSSÁRIO:
 
 
 def _token():
+    """Lê o token opcional do arquivo configurado; sem arquivo, a chamada vai sem Authorization."""
     try:
         return open(TOKEN_ARQ).read().strip()
     except OSError:

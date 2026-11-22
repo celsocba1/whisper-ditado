@@ -32,6 +32,7 @@ TRAVA_ARQ = os.path.join(RUN, "trava")
 
 
 def avisar(msg):
+    """Notificação na bandeja do desktop (notify-send), sem acumular pilha de avisos."""
     subprocess.run(["notify-send", "-t", "2500", "-h", "string:x-canonical-private-synchronous:ditado",
                     "Ditado", msg], check=False)
 
@@ -53,6 +54,7 @@ def pcm_do_wav(caminho):
 def garantir_daemon():
     """Sobe o daemon (systemd --user) se o socket não responder; espera o modelo carregar."""
     def ping():
+        """Tenta o PING 0x02 no socket do daemon."""
         try:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             s.settimeout(2)
@@ -75,6 +77,7 @@ def garantir_daemon():
 
 
 def transcrever(pcm):
+    """Manda o PCM ao daemon com as dicas do dicionário e devolve o texto corrigido."""
     dica = dicionario.dicas().encode()  # camada 0: termos do dicionário como vocabulário
     corpo = struct.pack(">H", len(dica)) + dica + pcm  # comando 0x04: u16 n + dicas + PCM
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -83,6 +86,7 @@ def transcrever(pcm):
     s.sendall(struct.pack(">IB", 1 + len(corpo), 0x04) + corpo)
 
     def exato(n):
+        """Lê exatamente n bytes do socket (o daemon responde em quadros)."""
         b = bytearray()
         while len(b) < n:
             c = s.recv(n - len(b))
@@ -99,10 +103,12 @@ def transcrever(pcm):
 
 
 def digitar(texto):
+    """Digita o texto no campo focado com xdotool."""
     subprocess.run(["xdotool", "type", "--clearmodifiers", "--delay", "5", "--", texto], check=False)
 
 
 def iniciar_gravacao():
+    """Abre o arecord em sessão própria e guarda o PID; o teto de gravação é do próprio arecord."""
     # microfone padrão do PulseAudio/PipeWire; timeout do arecord = teto de gravação
     p = subprocess.Popen(["arecord", "-q", "-f", "S16_LE", "-r", "16000", "-c", "1",
                           "-d", str(TETO_S), "-t", "wav", WAV_ARQ],
@@ -118,6 +124,7 @@ def iniciar_gravacao():
 
 
 def parar_e_transcrever(pid, digitar_texto):
+    """Fecha o arecord, espera o WAV ficar íntegro e manda transcrever."""
     try:
         os.kill(pid, signal.SIGINT)  # SIGINT fecha o cabeçalho do WAV
     except ProcessLookupError:
@@ -152,6 +159,7 @@ def parar_e_transcrever(pid, digitar_texto):
 
 
 def _entregar(texto, digitar_texto):
+    """Entrega o texto: imprime na saída ou digita no campo, com aviso na bandeja."""
     if not texto:
         avisar("Nada reconhecido")
         return
@@ -178,6 +186,7 @@ def alternar_janela():
 
 
 def pid_vivo():
+    """Devolve o PID do arecord se ele ainda estiver de pé."""
     try:
         pid = int(open(PID_ARQ).read().strip())
         os.kill(pid, 0)
@@ -187,6 +196,7 @@ def pid_vivo():
 
 
 def main():
+    """Linha de comando: --arquivo para teste, --direto para o modo antigo; o resto é o F9 alternando."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--arquivo", help="transcreve este WAV em vez de gravar (teste)")
     ap.add_argument("--direto", action="store_true", help="modo antigo: grava e digita sem a janela de confirmação")

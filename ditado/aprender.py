@@ -28,6 +28,7 @@ _TOK = re.compile(r"\w+(?:[-']\w+)*|[^\w\s]", re.U)
 
 
 def _tokens(t):
+    """Quebra o texto em palavras e pontuação (tokenização leve, sem dependência)."""
     return _TOK.findall(t)
 
 
@@ -71,6 +72,7 @@ def historico_add(texto, bruto=""):
 
 
 def historico_ler(dias=14):
+    """Devolve os ditados dos últimos N dias (o arquivo é podado na gravação)."""
     lim, out = time.time() - dias * 86400, []
     try:
         for linha in open(ARQ_HIST, encoding="utf-8"):
@@ -86,6 +88,7 @@ def historico_ler(dias=14):
 
 
 def _ler():
+    """Lê o JSON de candidatos; arquivo ausente ou quebrado volta vazio."""
     try:
         return json.load(open(ARQ_CAND))
     except (OSError, ValueError):
@@ -93,6 +96,7 @@ def _ler():
 
 
 def _gravar(d):
+    """Grava o JSON de candidatos atomicamente (.tmp + rename)."""
     os.makedirs(ESTADO, exist_ok=True)
     tmp = ARQ_CAND + ".tmp"
     json.dump(d, open(tmp, "w"), ensure_ascii=False, indent=1)

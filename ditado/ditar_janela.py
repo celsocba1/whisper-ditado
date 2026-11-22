@@ -30,6 +30,7 @@ except Exception:  # noqa: BLE001  (fase 3 opcional)
 
 
 def xdo(*a):
+    """Chama o xdotool e devolve a saída; sem xdotool, devolve vazio e a janela segue sem colar."""
     try:
         return subprocess.run(["xdotool", *a], capture_output=True, text=True, timeout=5).stdout.strip()
     except Exception:  # noqa: BLE001
@@ -38,6 +39,7 @@ def xdo(*a):
 
 class Janela:
     def __init__(self):
+        """Descobre a janela alvo (foco antes de abrir), monta a UI e liga os sinais."""
         self.alvo = xdo("getactivewindow")           # janela que estava em foco: recebe a colagem
         self.fase = "conectando"
         self.entregue = ""                            # texto como o serviço entregou (base do aprendizado)
@@ -79,30 +81,35 @@ class Janela:
         self.lbl.config(text=t, fg=cor)
 
     def tick(self):
+        """Cronômetro da gravação no rótulo de status."""
         if self.fase == "gravando":
             s = int(time.time() - self.t0)
             self.status(f"● GRAVANDO {s // 60:02d}:{s % 60:02d}   (F9 ou Parar)", "#ff5555")
         self.root.after(250, self.tick)
 
     def _modificou(self, _e):
+        """Marca o texto como editado quando o usuário mexe depois do final chegar."""
         if self.txt.edit_modified():
             if self.fase == "pronto" and self.txt.get("1.0", "end-1c") != self.entregue:
                 self.editado = True
             self.txt.edit_modified(False)
 
     def set_texto(self, t):
+        """Troca o conteúdo do campo sem disparar o _modificou como edição do usuário."""
         self.txt.delete("1.0", "end")
         self.txt.insert("1.0", t)
         self.txt.edit_modified(False)
 
     # --- serviço
     def enviar(self, obj):
+        """Manda uma linha JSON ao serviço; falha é silenciosa (o heartbeat cuida da saúde)."""
         try:
             self.sock.sendall((json.dumps(obj) + "\n").encode())
         except Exception:  # noqa: BLE001
             pass
 
     def ouvir(self):
+        """Conecta no socket, manda start e despacha cada linha recebida na thread da UI."""
         try:
             self.sock = socket.socket(socket.AF_UNIX)
             self.sock.connect(SOCK)
@@ -115,11 +122,13 @@ class Janela:
             self.root.after(0, self.erro, f"serviço de ditado indisponível ({e})")
 
     def hb(self):
+        """Heartbeat a cada 3 s — sem ele o serviço cancela a gravação sozinho."""
         while self.sock and self.fase in ("gravando", "transcrevendo", "pronto"):
             self.enviar({"cmd": "hb"})
             time.sleep(3)
 
     def tratar(self, m):
+        """Estados da sessão conforme a mensagem do serviço (gravando/final/polido/erro)."""
         if os.environ.get("DITADO_DEBUG"):
             open("/tmp/ditado_janela.log", "a").write(f"{time.time():.1f} {self.fase} {str(m)[:200]}\n")
         t = m.get("tipo")
@@ -152,12 +161,14 @@ class Janela:
             self.encerrar()
 
     def erro(self, msg):
+        """Mostra o erro e fecha a janela em 3,5 s."""
         self.fase = "erro"
         self.status(f"Erro: {msg}", "#ffb86c")
         self.root.after(3500, self.encerrar)
 
     # --- ações
     def principal(self):
+        """Botão principal / F9: para e transcreve, ou cola quando o texto já está pronto."""
         if self.fase == "gravando":
             self.fase = "transcrevendo"
             self.status("Transcrevendo…", "#ffd866")
@@ -167,6 +178,7 @@ class Janela:
             self.colar()
 
     def usar_polido(self):
+        """Aplica a versão polida por cima do texto entregue."""
         if self.polido:
             self.entregue = self.polido
             self.set_texto(self.polido)
@@ -174,11 +186,13 @@ class Janela:
             self.b_pol.config(state="disabled")
 
     def copiar(self, t):
+        """Copia para a área de transferência do Tk."""
         self.root.clipboard_clear()
         self.root.clipboard_append(t)
         self.root.update()
 
     def colar(self):
+        """Copia SEMPRE, alimenta o aprendizado, volta à janela alvo e cola lá."""
         if self.fase != "pronto":
             return
         t = self.txt.get("1.0", "end-1c").strip()
@@ -203,6 +217,7 @@ class Janela:
         limite = time.time() + 1800
 
         def checar():
+            """Encerra quando o texto da área de transferência mudou (outro app copiou) ou deu 30 min."""
             try:
                 atual = self.root.clipboard_get()
             except tk.TclError:
@@ -214,6 +229,7 @@ class Janela:
         self.root.after(2000, checar)
 
     def cancelar(self):
+        """Esc: cancela a gravação; com texto pronto, copia sem colar para não perder."""
         if self.fase in ("gravando", "transcrevendo", "conectando"):
             self.enviar({"cmd": "cancel"})
         elif self.fase == "pronto":
@@ -227,13 +243,15 @@ class Janela:
                 return self.manter_clipboard()
         self.encerrar()
 
-    def liberar_pid(self):   # novo F9 abre janela nova; este processo só segura a área de transferência
+    def liberar_pid(self):
+        """Solta o PID: o próximo F9 abre janela nova; este processo só segura a área de transferência."""   # novo F9 abre janela nova
         try:
             os.unlink(PID_ARQ)
         except OSError:
             pass
 
     def encerrar(self):
+        """Fecha a janela e mata o processo (o mantenedor de clipboard fica por conta do SO)."""
         try:
             os.unlink(PID_ARQ)
         except OSError:
@@ -243,6 +261,7 @@ class Janela:
 
 
 def main():
+    """Garante a pasta de runtime, grava o PID e sobe o loop da janela."""
     os.makedirs(RUN, mode=0o700, exist_ok=True)
     with open(PID_ARQ, "w") as f:
         f.write(str(os.getpid()))

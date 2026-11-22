@@ -19,6 +19,7 @@ _cache = {"mtime": None, "regras": [], "termos": [], "pares": []}
 
 
 def _carregar():
+    """Lê o YAML e devolve (regras regex, termos, pares); variante mais longa primeiro, para não cortar no meio."""
     with open(ARQ, encoding="utf-8") as f:
         d = yaml.safe_load(f) or {}
     termos, pares = [], []
@@ -40,6 +41,7 @@ def _carregar():
 
 
 def _estado():
+    """Cache por mtime: só relê o arquivo quando ele mudou; YAML quebrado mantém o último bom."""
     with _trava:
         try:
             m = os.stat(ARQ).st_mtime
@@ -60,6 +62,7 @@ def corrigir(texto):
     out, trocas = texto, []
     for rx, c in _estado()["regras"]:
         def sub(m, c=c):
+            """Anota a troca feita e devolve a forma certa."""
             if m.group(0) != c:
                 trocas.append((m.group(0), c))
             return c
